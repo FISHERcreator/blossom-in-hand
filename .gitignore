@@ -1,0 +1,18 @@
+# Local tooling and scratch files
+_tools/
+_pub/
+_shots/
+_downloads/
+.edge*/
+*.log
+
+# OS / editor
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/
+
+# Local secrets
+.env
+.env.*

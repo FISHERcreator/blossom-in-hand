@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#07030d" />
+    <meta
+      name="description"
+      content="指尖生花 —— 用 MediaPipe Hands 与 Three.js 打造的手势交互花朵。握拳成苞，张掌盛放。"
+    />
+    <title>指尖生花 · Blossom in Hand</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CradialGradient id='g'%3E%3Cstop stop-color='%23ffd9a0'/%3E%3Cstop offset='1' stop-color='%23ff4f96' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='32' cy='32' r='31' fill='%230b0512'/%3E%3Cpath d='M32 9c8 8 11 16 0 23C21 25 24 17 32 9Z' fill='%23ff8cbc'/%3E%3Cpath d='M32 9c-8 8-11 16 0 23 11-7 8-15 0-23Z' fill='%23ff4f96' opacity='.7'/%3E%3Ccircle cx='32' cy='32' r='4' fill='%23ffd9a0'/%3E%3Cpath d='M32 36v16M32 44l-8 8M32 47l8 7' stroke='%23ffbfd8' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="./css/style.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./vendor/three/three.module.js",
+          "@mediapipe/tasks-vision": "./vendor/mediapipe/vision_bundle.mjs"
+        }
+      }
+    </script>
+  </head>
+  <body class="is-entry">
+    <main class="stage" id="stage">
+      <canvas id="world" aria-hidden="true"></canvas>
+      <div class="atmosphere" aria-hidden="true"></div>
+      <div class="grain" aria-hidden="true"></div>
+
+      <header class="topbar">
+        <a class="brand" href="./" aria-label="指尖生花首页">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 40 40" fill="none">
+              <path d="M20 3c5.6 4.7 7.9 10.9 1.4 16.2C14.9 13.9 15.9 7.9 20 3Z" stroke="currentColor" stroke-width="1.1"/>
+              <path d="M20 3c-5.6 4.7-7.9 10.9-1.4 16.2C25.1 13.9 24.1 7.9 20 3Z" fill="currentColor" fill-opacity=".18"/>
+              <path d="M20 22.5c5.2-3.4 10.3-2.3 12.9 2.6-4.8 4.1-10.2 3.5-12.9-2.6Z" stroke="currentColor" stroke-width="1.1"/>
+              <path d="M20 22.5c-5.2-3.4-10.3-2.3-12.9 2.6 4.8 4.1 10.2 3.5 12.9-2.6Z" stroke="currentColor" stroke-width="1.1"/>
+              <circle cx="20" cy="21.6" r="2.3" fill="currentColor"/>
+              <path d="M20 26v10" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="brand-copy">
+            <span class="brand-title">指尖生花</span>
+            <span class="brand-en">BLOSSOM IN HAND</span>
+          </span>
+        </a>
+
+        <div class="top-actions">
+          <div class="system-state" id="system-state">
+            <span class="system-dot" aria-hidden="true"></span>
+            <span id="system-label">待唤醒</span>
+          </div>
+          <button class="icon-button" id="help-button" type="button" aria-label="查看体验说明" aria-haspopup="dialog">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <circle cx="10" cy="10" r="7.25" stroke="currentColor" stroke-width="1.2"/>
+              <path d="M8.2 7.6c.1-1 .9-1.8 2-1.8 1.2 0 2.1.8 2.1 1.9 0 1.6-1.8 1.7-2.2 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+              <circle cx="10" cy="13.75" r=".8" fill="currentColor"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <aside class="camera-panel" id="camera-panel" aria-label="手部识别摄像头">
+        <div class="camera-head">
+          <span class="micro-label"><span class="live-dot"></span> CAMERA / HAND</span>
+          <span class="camera-time" id="camera-time">00:00</span>
+        </div>
+        <div class="camera-frame">
+          <video id="camera-video" autoplay muted playsinline aria-label="摄像头画面"></video>
+          <canvas id="hand-canvas" aria-hidden="true"></canvas>
+          <div class="camera-placeholder" id="camera-placeholder">
+            <span class="placeholder-eye" aria-hidden="true"></span>
+            <span>等待授权摄像头</span>
+          </div>
+          <div class="camera-scan" aria-hidden="true"></div>
+          <i class="corner corner-tl" aria-hidden="true"></i>
+          <i class="corner corner-tr" aria-hidden="true"></i>
+          <i class="corner corner-bl" aria-hidden="true"></i>
+          <i class="corner corner-br" aria-hidden="true"></i>
+          <div class="hand-lock" id="hand-lock"><span></span> HAND LOCKED</div>
+        </div>
+        <div class="camera-foot">
+          <span class="camera-status" id="camera-status">摄像头未开启</span>
+          <button type="button" class="text-button" id="camera-retry">重试</button>
+        </div>
+      </aside>
+
+      <aside class="gesture-legend" aria-label="手势说明">
+        <span class="legend-index">GESTURE / 02</span>
+        <div class="legend-item" data-legend="closed">
+          <span class="legend-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M7.7 10.4V7.6a1.4 1.4 0 0 1 2.8 0v1.8m0-2.8a1.4 1.4 0 0 1 2.8 0v3m0-1.4a1.4 1.4 0 0 1 2.8 0v3.7m-8.4-1.5V10a1.4 1.4 0 1 0-2.8 0v4.1c0 .8.2 1.5.7 2.1l2 2.6c.7.9 1.7 1.4 2.8 1.4h2.4c1.9 0 3.5-1.4 3.8-3.2l.6-3.7a1.5 1.5 0 0 0-1.5-1.7c-.8 0-1.4.6-1.5 1.4" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="legend-copy"><b>握拳</b><small>花瓣收拢，归于花苞</small></span>
+          <span class="legend-num">01</span>
+        </div>
+        <div class="legend-rule"></div>
+        <div class="legend-item" data-legend="open">
+          <span class="legend-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M8.2 11V5.9a1.35 1.35 0 0 1 2.7 0V10m0-5.5a1.35 1.35 0 0 1 2.7 0V10m0-4a1.35 1.35 0 0 1 2.7 0v5m0-2.1a1.35 1.35 0 0 1 2.7 0v3.8c0 4.2-2.6 6.9-6.6 6.9h-1.2c-2 0-3.8-1-4.8-2.7L4.4 14c-.4-.8-.2-1.7.5-2.2.7-.4 1.6-.2 2.1.4l1.2 1.5V11Z" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="legend-copy"><b>张掌</b><small>掌心舒展，花朵盛放</small></span>
+          <span class="legend-num">02</span>
+        </div>
+        <p class="legend-note">手掌正对镜头<br />保持整只手在画面内</p>
+      </aside>
+
+      <section class="readout" id="readout" data-state="closed" aria-live="polite">
+        <div class="readout-top">
+          <span class="micro-label" id="state-kicker">PETAL STATE / SLEEP</span>
+          <span class="open-value"><span id="open-percent">00</span><small>%</small></span>
+        </div>
+        <h1 class="state-title" id="state-title">花苞</h1>
+        <p class="state-desc" id="state-desc">握拳，让风停在花瓣之外。掌心打开时，光会替你唤醒它。</p>
+        <div class="meter" role="progressbar" aria-label="花朵开放程度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="meter">
+          <div class="meter-track"><div class="meter-fill" id="meter-fill"></div><span class="meter-spark" id="meter-spark"></span></div>
+          <div class="meter-labels"><span>闭合</span><span>半绽</span><span>盛放</span></div>
+        </div>
+      </section>
+
+      <div class="stage-hint" id="stage-hint">
+        <span class="hint-line" aria-hidden="true"></span>
+        <span>移动手掌 · 花瓣会向指尖轻轻侧身</span>
+      </div>
+
+      <footer class="footer">
+        <span>REAL-TIME HAND TRACKING · 21 LANDMARKS</span>
+        <span class="footer-mid">光在指尖，花在呼吸</span>
+        <span>ON-DEVICE / 影像不离开本机</span>
+      </footer>
+
+      <div class="toast" id="toast" role="status" aria-live="polite">
+        <span class="toast-mark" aria-hidden="true"></span>
+        <span id="toast-text"></span>
+      </div>
+    </main>
+
+    <section class="entry" id="entry" aria-labelledby="entry-title">
+      <div class="entry-orbit orbit-a" aria-hidden="true"></div>
+      <div class="entry-orbit orbit-b" aria-hidden="true"></div>
+      <div class="entry-card">
+        <div class="entry-meta">
+          <span class="entry-index">NO. 01 / INTERACTIVE BOTANY</span>
+          <span class="entry-live"><i></i> LIVE EXPERIENCE</span>
+        </div>
+
+        <div class="entry-heading">
+          <div class="entry-flower" aria-hidden="true">
+            <span class="petal p1"></span>
+            <span class="petal p2"></span>
+            <span class="petal p3"></span>
+            <span class="petal p4"></span>
+            <span class="petal p5"></span>
+            <span class="petal p6"></span>
+            <span class="entry-core"></span>
+          </div>
+          <div>
+            <h2 id="entry-title">指尖生花</h2>
+            <p class="entry-en">BLOOM AT YOUR FINGERTIPS</p>
+          </div>
+        </div>
+
+        <p class="entry-lede">
+          一朵由光与粒子构成的花，正在等待你的手。<br />
+          握拳，它收拢成苞；张开手掌，它便朝指尖盛放。
+        </p>
+
+        <div class="entry-steps">
+          <div class="entry-step"><span>01</span><p>允许摄像头<br /><small>画面仅在本机实时运算</small></p></div>
+          <div class="entry-step"><span>02</span><p>将手掌放入画面<br /><small>距离镜头约 40–70 厘米</small></p></div>
+          <div class="entry-step"><span>03</span><p>握拳，再张开<br /><small>看花随你的动作苏醒</small></p></div>
+        </div>
+
+        <div class="entry-actions">
+          <button class="primary-button" id="start-button" type="button">
+            <span class="button-glow" aria-hidden="true"></span>
+            <span>授权摄像头 · 开启体验</span>
+            <svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M3 9h11m-4-4 4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="ghost-button" id="demo-button" type="button">
+            先看自动演示
+            <span aria-hidden="true">↗</span>
+          </button>
+        </div>
+
+        <div class="entry-foot">
+          <span class="privacy-mark" aria-hidden="true">
+            <svg viewBox="0 0 14 14" fill="none"><path d="M3.4 6.2V4.8a3.6 3.6 0 0 1 7.2 0v1.4M2.6 6.2h8.8v5.2H2.6z" stroke="currentColor" stroke-width="1"/></svg>
+          </span>
+          <span>无需上传 · 无需注册 · 建议使用 Chrome / Edge</span>
+          <button class="link-button" id="entry-help" type="button">体验说明</button>
+        </div>
+      </div>
+      <p class="entry-hint">按 <kbd>D</kbd> 也可以直接进入演示</p>
+    </section>
+
+    <div class="loading-layer" id="loading-layer" aria-live="polite" aria-hidden="true">
+      <div class="loading-card">
+        <div class="loading-ring" aria-hidden="true"><span></span></div>
+        <span class="micro-label">AWAKENING THE FLOWER</span>
+        <p id="loading-text">正在唤醒摄像头与手势模型…</p>
+      </div>
+    </div>
+
+    <dialog class="help-dialog" id="help-dialog" aria-labelledby="help-title">
+      <button class="dialog-close" id="help-close" type="button" aria-label="关闭说明">×</button>
+      <span class="micro-label">HOW TO / 体验说明</span>
+      <h2 id="help-title">让花，跟着手呼吸</h2>
+      <ol>
+        <li><b>手势识别</b><span>浏览器会请求摄像头权限。MediaPipe Hands 在本机识别 21 个手部关键点，影像不会被上传。</span></li>
+        <li><b>闭合与盛放</b><span>握拳时，花瓣粒子收拢为花苞；五指张开时，粒子沿花瓣轨迹向外铺展。开合程度会连续跟随手势，不需要刻意对准某个按钮。</span></li>
+        <li><b>指尖微交互</b><span>手掌在画面中移动，花朵会轻微跟随；指尖靠近花瓣时，局部粒子会产生扰动与暖光。</span></li>
+        <li><b>没有摄像头？</b><span>可以进入自动演示模式，或移动鼠标感受粒子的扰动。服务器需通过 localhost 或 HTTPS 访问。</span></li>
+      </ol>
+      <div class="dialog-footer"><span>隐私优先 · 所有推理均在浏览器本地完成</span><button type="button" id="dialog-demo">进入自动演示</button></div>
+    </dialog>
+
+    <noscript>
+      <div class="noscript">这个体验需要 JavaScript 才能运行。请启用 JavaScript 后刷新页面。</div>
+    </noscript>
+
+    <script type="module" src="./js/main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,16 @@
+/vendor/three/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/vendor/mediapipe/wasm/*.wasm
+  Content-Type: application/wasm
+  Cache-Control: public, max-age=31536000, immutable
+
+/vendor/mediapipe/wasm/*.js
+  Cache-Control: public, max-age=31536000, immutable
+
+/vendor/mediapipe/*.mjs
+  Cache-Control: public, max-age=31536000, immutable
+
+/models/*
+  Content-Type: application/octet-stream
+  Cache-Control: public, max-age=31536000, immutable
